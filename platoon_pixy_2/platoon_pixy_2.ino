@@ -1,11 +1,8 @@
-//code taken from the pixy 'hello world' example
 
 #include <SPI.h>  
 #include <Pixy.h>
-#include <MAVERICK.h>
 
 
-//------------------------------------------//
 
 #define signatureOfInterest 1 //3 //change this value to match the signature of the objects which are interesting to the end user
 #define intertapeDistance 180.00 //this is an arbitrary scaler which will set the point where the robot decides to stop when the 
@@ -14,16 +11,10 @@
                   //use the x-axis to control robot turning, if xPlane = 0, use y-axis
 #define speedScalar 0.3 //0.7 //this limits the ultimate speed that the robot tries to attain when in autonomous mode
 
-//------------------------------------------//
 
-// This is the main Pixy object 
 Pixy pixy;
 Block dataBuffer1[1]; //a buffer to save block data in, 10 historic values
 Block dataBuffer2[1]; //we'll only track two objects for now
-//buffers to store motion data in- the format should look like 
-//{header, joystick x-axis byte 1, joystick x-axis byte 0, joystick y-axis byte 1, joystick y-axis byte 0, joystick button byte 0, sum}
-//in order to use the joystick values, compute the following: 
-//joystick-axis = {[(joystick-axis byte 1)*256 + joystick-axis byte 0]/32767 - 1.000013}
 uint16_t fwdSpeed = 0;
 uint16_t sSpeed = 0;
 uint8_t fwdSpeedByte0 = 0;
@@ -51,8 +42,7 @@ int newarea=0;
  int maxArea = 0;
  int minArea = 0;
  int SIZE;
-  uint16_t blocks;//a variable to store blocks (struct) in
-  //    uint16_t xHeading, yHeading;
+ uint16_t blocks;//a variable to store blocks (struct) in
   
 void setup()
 {
@@ -62,36 +52,24 @@ void setup()
   pixy.init();//turn on the pixy camera
   //timerStart = millis();
   //searchTimer = timerStart;
-  initialise();
-  
 }
 
 void loop()
 { 
   
         static int i = 0;//a pixy camera frame counter, static makes the value be saved between loops
-        // grab blocks!
         blocks = pixy.getBlocks(1); //(2);//can input uint16_t that specifies the number of blocks to get. 
-        //These are returned in the order of signature (all the '1's first, etc.) and then size (within a signature, largest first).
         
-        // Blocks are only captured once per camera frame
-        //so we only update if we've read in new data
         if (blocks){
-              //Serial.println("blocks...");
               i++;   
-              // update the block data buffers every xx frames
-              //by default, the pixy runs at 50 fps, 640x400
               if (i%10==0){
-                    //loop through all blocks which have been received
-                    //check the signature of each one vs the desired signatureOfInterest
-                    //check the position, size and trajectory of each object buffer in order to determine which buffer to save data in
                     int distanceBetweenObjects;
                     
-                    for (int j=0; j<blocks; j++){ //FOR int j=0; j<blocks; j++
+                    for (int j=0; j<blocks; j++){ 
                             for_each_j( j );
-                    }//FOR int j=0; j<blocks; j++
-              } //End i%30==0
-        } //End if (blocks)
+                    }
+              }
+        } 
   
 }
 
@@ -100,17 +78,16 @@ void for_each_j( int j ){
         Serial.print("Sig: ");
         Serial.print(pixy.blocks[j].signature);
         Serial.print("\t\t");
-        if(pixy.blocks[j].signature == signatureOfInterest){ //If...signature-of-interest
+        if(pixy.blocks[j].signature == signatureOfInterest){
               //largest detected object
               if(j == 0){
                       on_j_is_zero(j);
-              } //End If...j==0
+              } 
         } //END IF...signature-of-interest  
 }
 
 void on_j_is_zero( int j ){
 
-          //rotateBlockBuffer(dataBuffer1);//update the data buffer to accept new data
           dataBuffer1[0] = pixy.blocks[j];//put the new data in the buffer
           xHeading = dataBuffer1[0].x;
           x=xHeading;
@@ -138,7 +115,7 @@ void on_j_is_zero( int j ){
             p=1.8*p;
           }
           
-          steer(p);
+          //steer(p);
           
           error_previous=error;
           
@@ -176,10 +153,8 @@ void forward()
           p_s=0;
       }
       
-      drive(p_s);
+      //drive(p_s);
       error_previous_s=error_s;
       Serial.print("Previous Error:");
       Serial.println(p_s);
   }
-
-
