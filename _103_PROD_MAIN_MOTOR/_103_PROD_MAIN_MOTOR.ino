@@ -192,6 +192,35 @@ void can_operations(){
 }
 
 void dutyCycleToSteering(){
+
+  /*
+  TODO:
+  Get value from potentiometer, use to define centre-trim value
+  */
+  int centreTrim = 1000;
+  
+  Serial.print("  ---  ");  
+    Serial.print(currentDutyCycleSteer);
+    Serial.print("  -  ");  
+    int steerLinear=0;
+
+    if( currentDutyCycleSteer < 1500){
+          indicate_LEFT();
+          steerLinear = ( currentDutyCycleSteer);
+    }else{
+          indicate_RIGHT();
+          steerLinear = ( currentDutyCycleSteer);
+    }
+
+    int steerScalar = steerLinear-centreTrim;
+    steerScalar = 180 - (steerScalar/5.55555);
+    Serial.print( steerScalar );  
+    svr_steer.write(steerScalar);
+    Serial.print("\n");
+    //delay(500);
+}
+
+void __dutyCycleToSteering(){
   Serial.print("  ---  ");  
     Serial.print(currentDutyCycleSteer);
     Serial.print("  -  ");  

@@ -41,8 +41,8 @@ void loop() {
 
   //long_string();
   //track_lr();
-  //basic_circle();
-  basic_triangle();
+  basic_circle();
+  //basic_triangle();
   //basic_square();
 
 }

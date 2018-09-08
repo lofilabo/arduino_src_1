@@ -46,7 +46,7 @@ void statechange_hi_to_lo(){
       
       Serial.println( irpm ); 
       byte data[8] = {irpm};
-      byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
+      byte sndStat = CAN0.sendMsgBuf(0x107, 0, 8, data);
       if(sndStat == CAN_OK){
         Serial.println("Message Sent Successfully!");
       } else {
