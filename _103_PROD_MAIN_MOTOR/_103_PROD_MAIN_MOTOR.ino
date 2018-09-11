@@ -21,6 +21,13 @@ int currentDutyCycleSteer = 1500;
 float speedLinear = 0.00;
 int forwardReverse = 1;//1=forward 0=reverse
 
+int thisMagReadingTime=0;
+int prevMagReadingTime=0;
+
+int magnetometerAngle;
+
+int RPM;
+
 long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
@@ -60,6 +67,10 @@ int i=0;
 #define LED_REVERSE 37
 #define LED_NEUTRAL 39
 #define LED_FORWARD 41
+
+#define SIGNAL_MAG_BUMP 10
+
+
 
 void CAN_IN_ON (){
     digitalWrite(LED_CAN_IN,   HIGH);
@@ -128,6 +139,7 @@ void setup() {
    pinMode( LED_FORWARD, OUTPUT); digitalWrite(LED_FORWARD, LOW);
    pinMode( LED_NEUTRAL, OUTPUT); digitalWrite(LED_NEUTRAL, LOW);
    pinMode( LED_REVERSE, OUTPUT); digitalWrite(LED_REVERSE, LOW);
+   pinMode( SIGNAL_MAG_BUMP, OUTPUT ); digitalWrite(SIGNAL_MAG_BUMP, LOW);
     
     Serial.begin(9600);
     svr_steer.attach(11);
@@ -136,11 +148,11 @@ void setup() {
     attachInterrupt(steer_PWM_Interrupt, rising_STEER_PWM, RISING);
 
   // Initialize MCP2515 running at 16MHz with a baudrate of 500kb/s and the masks and filters disabled.
-  if(CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)
-    Serial.println("MCP2515 Initialized Successfully!");
-  else
-    Serial.println("Error Initializing MCP2515...");
-  
+  if(CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK){
+    //Serial.println("MCP2515 Initialized Successfully!");
+  }else{
+    //Serial.println("Error Initializing MCP2515...");
+  }
   CAN0.setMode(MCP_NORMAL);                     // Set operation mode to normal so the MCP2515 sends acks to received data.
 
   pinMode(CAN0_INT, INPUT);                     // Configuring pin for /INT input
@@ -157,10 +169,10 @@ void can_operations(){
     byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
     if(sndStat == CAN_OK){
       CAN_OUT_ON();
-      Serial.println("Message Sent Successfully!");
+      //Serial.println("Message Sent Successfully!");
       CAN_OUT_OFF();
     } else {
-      Serial.println("Error Sending Message...");
+      //Serial.println("Error Sending Message...");
     }
 
   
@@ -169,14 +181,28 @@ void can_operations(){
     CAN_IN_ON();
     
     CAN0.readMsgBuf(&rxId, &len, rxBuf);      // Read data: len = data length, buf = data byte(s)
-    
+    /*
     if((rxId & 0x80000000) == 0x80000000)     // Determine if ID is standard (11 bits) or extended (29 bits)
       sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (rxId & 0x1FFFFFFF), len);
     else
       sprintf(msgString, "Standard ID: 0x%.3lX       DLC: %1d  Data:", rxId, len);
-  
-    Serial.print(msgString);
-  
+    */
+
+    if( rxId == 257 ){
+      handleMagnetometerInfo( rxBuf[0], rxBuf[1] );
+    }else if( rxId == 263){
+      RPM = rxBuf[0];
+      if(forwardReverse==1){
+        RPM = RPM * -1;  
+      }
+      Serial.print("RPM: ");
+      Serial.print(RPM);
+      Serial.print("\n");
+    }
+    
+    //Serial.print(msgString);
+    //Serial.println(rxId);
+    /*
     if((rxId & 0x40000000) == 0x40000000){    // Determine if message is a remote request frame.
       sprintf(msgString, " REMOTE REQUEST FRAME");
       Serial.print(msgString);
@@ -186,9 +212,34 @@ void can_operations(){
         Serial.print(msgString);
       }
     }
+    */
     CAN_IN_OFF();
     Serial.println();
   }
+}
+
+void handleMagnetometerInfo( int direction_EW, int value_degrees ){
+      
+      prevMagReadingTime = millis();
+      
+      //Serial.print ("Mag Msg - ");
+      //Serial.print(rxId);
+      //Serial.print(" - ");
+      //Serial.print(direction_EW);
+      //Serial.print(" - ");
+      //Serial.println(value_degrees);
+
+      /*
+       * 0 means EAST
+       * 1 means WEST.
+       */
+      if(direction_EW==0){
+        magnetometerAngle = value_degrees;
+      }else{
+        magnetometerAngle = value_degrees * -1;
+      }
+      Serial.println( magnetometerAngle );
+       
 }
 
 void dutyCycleToSteering(){
@@ -197,11 +248,11 @@ void dutyCycleToSteering(){
   TODO:
   Get value from potentiometer, use to define centre-trim value
   */
-  int centreTrim = 1000;
+  int centreTrim = 925;
   
-  Serial.print("  ---  ");  
-    Serial.print(currentDutyCycleSteer);
-    Serial.print("  -  ");  
+  //Serial.print("  ---  ");  
+    //Serial.print(currentDutyCycleSteer);
+    //Serial.print("  -  ");  
     int steerLinear=0;
 
     if( currentDutyCycleSteer < 1500){
@@ -213,17 +264,18 @@ void dutyCycleToSteering(){
     }
 
     int steerScalar = steerLinear-centreTrim;
-    steerScalar = 180 - (steerScalar/5.55555);
-    Serial.print( steerScalar );  
+    //steerScalar = 180 - (steerScalar/5.55555);
+    steerScalar = steerScalar/5.55555;
+    //Serial.print( steerScalar );  
     svr_steer.write(steerScalar);
-    Serial.print("\n");
+    //Serial.print("\n");
     //delay(500);
 }
 
 void __dutyCycleToSteering(){
-  Serial.print("  ---  ");  
-    Serial.print(currentDutyCycleSteer);
-    Serial.print("  -  ");  
+  //Serial.print("  ---  ");  
+    //Serial.print(currentDutyCycleSteer);
+    //Serial.print("  -  ");  
     int steerLinear=0;
     if ( currentDutyCycleSteer > 1450 & currentDutyCycleSteer < 1650){
       //Neutral.  Speed = 0;
@@ -241,16 +293,16 @@ void __dutyCycleToSteering(){
 
     int steerScalar = steerLinear-1000;
     steerScalar = 180 - (steerScalar/5.55555);
-    Serial.print( steerScalar );  
+    //Serial.print( steerScalar );  
     svr_steer.write(steerScalar);
-    Serial.print("\n");
+    //Serial.print("\n");
     //delay(500);
 }
 
 void dutyCycleToOperation(){
 
-    Serial.print(currentDutyCycleSpeed);
-    Serial.print("  -  ");
+    //Serial.print(currentDutyCycleSpeed);
+    //Serial.print("  -  ");
     if(currentDutyCycleSpeed < 1000){
       currentDutyCycleSpeed = 1000;
      }    
@@ -302,9 +354,9 @@ void dutyCycleToOperation(){
       }
     }
 
-    Serial.print(forwardReverse);
-    Serial.print("  -  ");
-    Serial.print(speedLinear*40, DEC);
+    //Serial.print(forwardReverse);
+    //Serial.print("  -  ");
+    //Serial.print(speedLinear*40, DEC);
     //delay(200);
 }
 
@@ -315,6 +367,25 @@ void loop() {
   can_operations();
   dac.setVoltage(speedLinear * 40, false);
   //delay(1000);
+
+  checkMagentometer();
+  
+}
+
+void checkMagentometer(){
+  thisMagReadingTime = millis();
+  long timeSinceLastMagReading = thisMagReadingTime - prevMagReadingTime;
+  if(timeSinceLastMagReading>500){
+    bumpMagnetometer();  
+  }
+}
+
+void bumpMagnetometer(){
+  Serial.println("BUMP THE MAGNETOMETER!!");
+  digitalWrite(SIGNAL_MAG_BUMP,   HIGH);
+  delay(10);
+  digitalWrite(SIGNAL_MAG_BUMP,   LOW);
+  delay(1800);
 }
  
 void rising_SPEED_PWM() {
