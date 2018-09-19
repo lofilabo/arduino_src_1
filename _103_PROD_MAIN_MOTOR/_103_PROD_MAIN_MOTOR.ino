@@ -39,6 +39,8 @@ int magnetometerAngle;
 
 int RPM;
 
+int magThreshold;
+
 long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
@@ -79,6 +81,12 @@ int i=0;
 #define LED_NEUTRAL 39
 #define LED_FORWARD 41
 
+#define LED_DRIVE_CAN 18
+#define LED_DRIVE_PWM 20
+#define LED_STEER_CAN 22
+#define LED_STEER_PWM 24
+
+
 #define SWITCH_STEER_CAN_OR_PWM 43
 #define SWITCH_DRIVE_CAN_OR_PWM 45
 
@@ -100,6 +108,26 @@ void CAN_OUT_ON (){
 
 void CAN_OUT_OFF (){
     digitalWrite(LED_CAN_OUT,   LOW);
+}
+
+void indicate_STEERING_CAN(){
+  digitalWrite(LED_STEER_CAN,   HIGH);
+  digitalWrite(LED_STEER_PWM,   LOW);
+}
+
+void indicate_DRIVE_PWM(){
+  digitalWrite(LED_DRIVE_CAN,   LOW);
+  digitalWrite(LED_DRIVE_PWM,   HIGH);
+}
+
+void indicate_DRIVE_CAN(){
+  digitalWrite(LED_DRIVE_CAN,   HIGH);
+  digitalWrite(LED_DRIVE_PWM,   LOW);
+}
+
+void indicate_STEERING_PWM(){
+  digitalWrite(LED_STEER_CAN,   LOW);
+  digitalWrite(LED_STEER_PWM,   HIGH);
 }
 
 void indicate_LEFT (){
@@ -138,52 +166,50 @@ void indicate_REVERSE (){
 }
 
 void setup() {
-    pinMode(12, OUTPUT);
-
-  /*
-   * Set up the pins for STATUS LED.
-   */
-   pinMode( LED_CAN_IN, OUTPUT);  digitalWrite(LED_CAN_IN, LOW);
-   pinMode( LED_CAN_OUT, OUTPUT); digitalWrite(LED_CAN_OUT, LOW);
-   pinMode( LED2, OUTPUT);        digitalWrite(LED2, LOW);
-   pinMode( LED3, OUTPUT);        digitalWrite(LED3, LOW);
-   pinMode( LED_STEER_RIGHT,   OUTPUT);    digitalWrite(LED_STEER_RIGHT, LOW);
-   pinMode( LED_STEER_CENTRE,  OUTPUT);    digitalWrite(LED_STEER_CENTRE, LOW);
-   pinMode( LED_STEER_LEFT,    OUTPUT);    digitalWrite(LED_STEER_LEFT, LOW);
-   pinMode( LED_FORWARD, OUTPUT); digitalWrite(LED_FORWARD, LOW);
-   pinMode( LED_NEUTRAL, OUTPUT); digitalWrite(LED_NEUTRAL, LOW);
-   pinMode( LED_REVERSE, OUTPUT); digitalWrite(LED_REVERSE, LOW);
-   pinMode( SIGNAL_MAG_BUMP, OUTPUT ); digitalWrite(SIGNAL_MAG_BUMP, LOW);
-
-   pinMode( SWITCH_STEER_CAN_OR_PWM, INPUT);
-   pinMode( SWITCH_DRIVE_CAN_OR_PWM, INPUT);
-
-    Serial.begin(9600);
-    svr_steer.attach(11);
-    // when pin D2 goes high, call the rising function
-    attachInterrupt(speed_PWM_Interrupt, rising_SPEED_PWM, RISING);
-    attachInterrupt(steer_PWM_Interrupt, rising_STEER_PWM, RISING);
-
-  // Initialize MCP2515 running at 16MHz with a baudrate of 500kb/s and the masks and filters disabled.
-  if(CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK){
-    //Serial.println("MCP2515 Initialized Successfully!");
-  }else{
-    //Serial.println("Error Initializing MCP2515...");
-  }
-  CAN0.setMode(MCP_NORMAL);                     // Set operation mode to normal so the MCP2515 sends acks to received data.
-
-  pinMode(CAN0_INT, INPUT);                     // Configuring pin for /INT input
+      pinMode(12, OUTPUT);
       
-    
-    dac.begin(0x62); // The I2C Address: Run the I2C Scanner if you're not sure 
+      /*
+      * Set up the pins for STATUS LED.
+      */
+      pinMode( LED_CAN_IN, OUTPUT);  digitalWrite(LED_CAN_IN, LOW);
+      pinMode( LED_CAN_OUT, OUTPUT); digitalWrite(LED_CAN_OUT, LOW);
+      pinMode( LED2, OUTPUT);        digitalWrite(LED2, LOW);
+      pinMode( LED3, OUTPUT);        digitalWrite(LED3, LOW);
+      pinMode( LED_STEER_RIGHT,   OUTPUT);    digitalWrite(LED_STEER_RIGHT, LOW);
+      pinMode( LED_STEER_CENTRE,  OUTPUT);    digitalWrite(LED_STEER_CENTRE, LOW);
+      pinMode( LED_STEER_LEFT,    OUTPUT);    digitalWrite(LED_STEER_LEFT, LOW);
+      pinMode( LED_FORWARD, OUTPUT); digitalWrite(LED_FORWARD, LOW);
+      pinMode( LED_NEUTRAL, OUTPUT); digitalWrite(LED_NEUTRAL, LOW);
+      pinMode( LED_REVERSE, OUTPUT); digitalWrite(LED_REVERSE, LOW);
+      pinMode( SIGNAL_MAG_BUMP, OUTPUT ); digitalWrite(SIGNAL_MAG_BUMP, LOW);
+      
+      pinMode( SWITCH_STEER_CAN_OR_PWM, INPUT);
+      pinMode( SWITCH_DRIVE_CAN_OR_PWM, INPUT);
+  
+      magThreshold = 500;
+  
+      Serial.begin(9600);
+      svr_steer.attach(11);
+      // when pin D2 goes high, call the rising function
+      attachInterrupt(speed_PWM_Interrupt, rising_SPEED_PWM, RISING);
+      attachInterrupt(steer_PWM_Interrupt, rising_STEER_PWM, RISING);
+  
+      // Initialize MCP2515 running at 16MHz with a baudrate of 500kb/s and the masks and filters disabled.
+      if(CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK){
+        //Serial.println("MCP2515 Initialized Successfully!");
+      }else{
+        //Serial.println("Error Initializing MCP2515...");
+      }
+      CAN0.setMode(MCP_NORMAL);                     // Set operation mode to normal so the MCP2515 sends acks to received data.
+  
+      pinMode(CAN0_INT, INPUT);                     // Configuring pin for /INT input
+      dac.begin(0x62); // The I2C Address: Run the I2C Scanner if you're not sure 
 }
 
 
 void can_operations(){
-
-  
     // send data:  ID = 0x100, Standard CAN Frame, Data length = 8 bytes, 'data' = array of data bytes to send
-/* 
+    /* 
     byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
 
     if(sndStat == CAN_OK){
@@ -193,72 +219,54 @@ void can_operations(){
     } else {
       //Serial.println("Error Sending Message...");
     }
-*/
+    */
   
   if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
   {
-    CAN_IN_ON();
-    
-    CAN0.readMsgBuf(&rxId, &len, rxBuf);      // Read data: len = data length, buf = data byte(s)
-    /*
-    if((rxId & 0x80000000) == 0x80000000)     // Determine if ID is standard (11 bits) or extended (29 bits)
-      sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (rxId & 0x1FFFFFFF), len);
-    else
-      sprintf(msgString, "Standard ID: 0x%.3lX       DLC: %1d  Data:", rxId, len);
-    */
-
-    if( rxId == 257 ){
-      handleMagnetometerInfo( rxBuf[0], rxBuf[1] );
-    }else if( rxId == 263){
-      RPM = rxBuf[0];
-      if(forwardReverse==1){
-        RPM = RPM * -1;  
-      }
-      Serial.print("RPM: ");
-      Serial.print(RPM);
-      Serial.print("\n");
-    }else if( rxId == 264){
-        //a steering instruction, 108 in Hex
+        CAN_IN_ON();
+        
+        CAN0.readMsgBuf(&rxId, &len, rxBuf);      // Read data: len = data length, buf = data byte(s)
         /*
-         *Steering is defined as 0-9 
-         *  1 2 3 4 5 6 7 8 9
-         *  LEFT    C     RIGHT
-         *  
-         */
-         can_steer = rxBuf[0];
-         prevCanSteerReadingTime = millis();
-         //Serial.print("STEER: \t");
-         //Serial.print( can_steer );
-    }else if(rxId == 265){
-        //a drive instruction, 109 in Hex
-        /*
-         *Steering is defined as 0-f 
-         *  1 2 3 4 5 6 7 8 9 a b c d e f
-         *  REV          NTR          FWD
-         *  
-         */    
-         can_drive = rxBuf[0];
-         prevCanDriveReadingTime = millis();
-         //Serial.print("DRIVE: \t");
-         //Serial.print( can_drive );
-         //Serial.print( "\n" );
-    }
+        if((rxId & 0x80000000) == 0x80000000)     // Determine if ID is standard (11 bits) or extended (29 bits)
+          sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (rxId & 0x1FFFFFFF), len);
+        else
+          sprintf(msgString, "Standard ID: 0x%.3lX       DLC: %1d  Data:", rxId, len);
+        */
     
-    //Serial.print(msgString);
-    //Serial.println(rxId);
-    /*
-    if((rxId & 0x40000000) == 0x40000000){    // Determine if message is a remote request frame.
-      sprintf(msgString, " REMOTE REQUEST FRAME");
-      Serial.print(msgString);
-    } else {
-      for(byte i = 0; i<len; i++){
-        sprintf(msgString, " 0x%.2X", rxBuf[i]);
-        Serial.print(msgString);
-      }
-    }
-    */
-    CAN_IN_OFF();
-    Serial.println();
+        if( rxId == 257 ){
+          //a signal from the magnetometer
+          handleMagnetometerInfo( rxBuf[0], rxBuf[1] );
+        }else if( rxId == 263){
+          //a signal from the rev counter
+          RPM = rxBuf[0];
+          if(forwardReverse==1){
+            RPM = RPM * -1;  
+          }
+        }else if( rxId == 264){
+            //a steering instruction, 108 in Hex
+             can_steer = rxBuf[0];
+             prevCanSteerReadingTime = millis();
+        }else if(rxId == 265){
+            //a drive instruction, 109 in Hex
+             can_drive = rxBuf[0];
+             prevCanDriveReadingTime = millis();
+        }
+        
+        //Serial.print(msgString);
+        //Serial.println(rxId);
+        /*
+        if((rxId & 0x40000000) == 0x40000000){    // Determine if message is a remote request frame.
+          sprintf(msgString, " REMOTE REQUEST FRAME");
+          Serial.print(msgString);
+        } else {
+          for(byte i = 0; i<len; i++){
+            sprintf(msgString, " 0x%.2X", rxBuf[i]);
+            Serial.print(msgString);
+          }
+        }
+        */
+        CAN_IN_OFF();
+        Serial.println();
   }
 }
 
@@ -404,7 +412,7 @@ void dutyCycleToOperation(){
 
     //Serial.print(forwardReverse);
     //Serial.print("  -  ");
-    //Serial.print(speedLinear*40, DEC);
+    //Serial.println(speedLinear*40, DEC);
     //delay(200);
 }
 
@@ -419,14 +427,18 @@ void handle_switches_rc_or_can(){
   
   if(can_or_rc_steer == 1){
     dutyCycleToSteering();
+    indicate_STEERING_PWM();
   }else{
     canToSteering();
+    indicate_STEERING_CAN();
   }
   
   if(can_or_rc_drive == 1){
     dutyCycleToOperation();
+    indicate_DRIVE_CAN();
   }else{
     canToDrive();
+    indicate_DRIVE_CAN();
   }
   /*
   Serial.print(can_steer);
@@ -436,6 +448,14 @@ void handle_switches_rc_or_can(){
 }
 
 void canToSteering(){
+
+  /*
+   *Steering is defined as 0-9 
+   *  1 2 3 4 5 6 7 8 9
+   *  LEFT    C     RIGHT
+   *  
+   */  
+  
   int centreTrim = 925;
   
   //Serial.print("  ---  ");  
@@ -468,28 +488,38 @@ void canToSteering(){
 }
 
 void canToDrive(){
-  Serial.println(can_drive);
 
-  int linear_drive;
-  
-  if(can_drive == 8){
-    linear_drive=0;
-    forwardReverse = 0;
-    digitalWrite(12, LOW); 
-    //Serial.print("NEUTRAL - ");
-  }else if (can_drive > 8){
-    linear_drive = can_drive - 8;
-    forwardReverse = 0;
-    digitalWrite(12, LOW); 
-    //Serial.print("FWD - ");
-  }else if (can_drive < 8){
-    linear_drive = 8 - can_drive;
-    forwardReverse = 1;
-    digitalWrite(12, HIGH);
-    //Serial.print("REV - "); 
-  }
-  //Serial.println(linear_drive);
-  speedLinear = linear_drive * 13;
+    /*
+     *Steering is defined as 0-f 
+     *  1 2 3 4 5 6 7 8 9 a b c d e f
+     *  REV          NTR          FWD
+     *  
+     */ 
+     //Serial.print("DRIVE: \t");
+     //Serial.print( can_drive );
+     //Serial.print( "\n" );
+      Serial.println(can_drive);
+
+      int linear_drive;
+      
+      if(can_drive == 8){
+        linear_drive=0;
+        forwardReverse = 0;
+        digitalWrite(12, LOW); 
+        //Serial.print("NEUTRAL - ");
+      }else if (can_drive > 8){
+        linear_drive = can_drive - 8;
+        forwardReverse = 0;
+        digitalWrite(12, LOW); 
+        //Serial.print("FWD - ");
+      }else if (can_drive < 8){
+        linear_drive = 8 - can_drive;
+        forwardReverse = 1;
+        digitalWrite(12, HIGH);
+        //Serial.print("REV - "); 
+      }
+      //Serial.println(linear_drive);
+      speedLinear = linear_drive * 13;
 }
 
 void loop() {
@@ -526,7 +556,7 @@ void checkCanSteer(){
   
 }
 
-int magThreshold;
+
 
 void checkMagentometer(){
   /*
