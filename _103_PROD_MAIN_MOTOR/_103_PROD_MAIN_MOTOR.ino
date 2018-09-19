@@ -24,7 +24,7 @@ volatile int canDriveValue = 0;
 
 int can_or_rc_steer = 0;
 int can_or_rc_drive = 0;
-int can_drive = 5;
+int can_drive = 8;
 int can_steer = 5;
 
 int currentDutyCycleSpeed = 1500;
@@ -232,9 +232,9 @@ void can_operations(){
     }else if(rxId == 265){
         //a drive instruction, 109 in Hex
         /*
-         *Steering is defined as 0-9 
-         *  1 2 3 4 5 6 7 8 9
-         *  REV    NTR    FWD
+         *Steering is defined as 0-f 
+         *  1 2 3 4 5 6 7 8 9 a b c d e f
+         *  REV          NTR          FWD
          *  
          */    
          can_drive = rxBuf[0];
@@ -436,26 +436,60 @@ void handle_switches_rc_or_can(){
 }
 
 void canToSteering(){
-  //Serial.print(can_steer);
-  //Serial.print("\t");
+  int centreTrim = 925;
+  
+  //Serial.print("  ---  ");  
+    //Serial.print(currentDutyCycleSteer);
+    //Serial.print("  -  ");  
+    //can_steer
+    int steerLinear=0;
+
+    currentDutyCycleSteer = can_steer * 166;
+    
+    if( currentDutyCycleSteer < 1480){
+          indicate_LEFT();
+    }else if( currentDutyCycleSteer > 1512){
+          indicate_RIGHT();
+    }else{
+          indicate_CENTRE();  
+    }
+
+    steerLinear = ( currentDutyCycleSteer);
+
+    int steerScalar = steerLinear-centreTrim;
+    //steerScalar = 180 - (steerScalar/5.55555);
+    steerScalar = steerScalar/5.55555;
+    //Serial.print( steerScalar );  
+    svr_steer.write(steerScalar);
+    //Serial.print("\n");
 
   
   
 }
 
 void canToDrive(){
-  //Serial.println(can_drive);
+  Serial.println(can_drive);
 
   int linear_drive;
   
-  if(can_drive == 5){
+  if(can_drive == 8){
     linear_drive=0;
-  }else if (can_drive > 5){
-    linear_drive = can_drive - 5;
-  }else if (can_drive < 5){
-    linear_drive = 5 - can_drive;
+    forwardReverse = 0;
+    digitalWrite(12, LOW); 
+    //Serial.print("NEUTRAL - ");
+  }else if (can_drive > 8){
+    linear_drive = can_drive - 8;
+    forwardReverse = 0;
+    digitalWrite(12, LOW); 
+    //Serial.print("FWD - ");
+  }else if (can_drive < 8){
+    linear_drive = 8 - can_drive;
+    forwardReverse = 1;
+    digitalWrite(12, HIGH);
+    //Serial.print("REV - "); 
   }
-  speedLinear = linear_drive * 25;
+  //Serial.println(linear_drive);
+  speedLinear = linear_drive * 13;
 }
 
 void loop() {
@@ -473,9 +507,11 @@ void loop() {
 void checkCanDrive(){
   thisCanDriveReadingTime = millis();
   long timeSinceLastCanDriveReading = thisCanDriveReadingTime - prevCanDriveReadingTime;
-  if(timeSinceLastCanDriveReading>2000){
+  if(timeSinceLastCanDriveReading>1000){
       //Serial.println("RESETTING CAN DRIVE READING to 5"); 
-      can_drive = 5;
+      can_drive = 8;
+      digitalWrite(12, LOW); 
+      speedLinear = 0;
   }
   
 }
@@ -483,27 +519,36 @@ void checkCanDrive(){
 void checkCanSteer(){
   thisCanSteerReadingTime = millis();
   long timeSinceLastCanSteerReading = thisCanSteerReadingTime - prevCanSteerReadingTime;
-  if(timeSinceLastCanSteerReading>2000){
+  if(timeSinceLastCanSteerReading>1000){
       //Serial.println("RESETTING CAN STEER READING to 5");
       can_steer = 5; 
   }
   
 }
 
+int magThreshold;
+
 void checkMagentometer(){
+  /*
   thisMagReadingTime = millis();
   long timeSinceLastMagReading = thisMagReadingTime - prevMagReadingTime;
-  if(timeSinceLastMagReading>500){
+  if(timeSinceLastMagReading>magThreshold){
+    magThreshold=2000;
     bumpMagnetometer();  
+  }else{
+    magThreshold=500;
   }
+  */
 }
 
 void bumpMagnetometer(){
+  /*
   Serial.println("BUMP THE MAGNETOMETER!!");
   digitalWrite(SIGNAL_MAG_BUMP,   HIGH);
   delay(10);
   digitalWrite(SIGNAL_MAG_BUMP,   LOW);
-  delay(2000);
+  delay(magThreshold);
+  */
 }
  
 void rising_SPEED_PWM() {
