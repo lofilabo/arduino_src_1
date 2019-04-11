@@ -41,6 +41,8 @@ int RPM;
 
 int magThreshold;
 
+int analogRevPin = 8;
+
 long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
@@ -81,10 +83,10 @@ int i=0;
 #define LED_NEUTRAL 39
 #define LED_FORWARD 41
 
-#define LED_DRIVE_CAN 18
-#define LED_DRIVE_PWM 20
-#define LED_STEER_CAN 22
-#define LED_STEER_PWM 24
+#define LED_DRIVE_CAN 22
+#define LED_DRIVE_PWM 24
+#define LED_STEER_CAN 26
+#define LED_STEER_PWM 28
 
 
 #define SWITCH_STEER_CAN_OR_PWM 43
@@ -111,21 +113,25 @@ void CAN_OUT_OFF (){
 }
 
 void indicate_STEERING_CAN(){
+  //Serial.println("indicate_STEERING_CAN");
   digitalWrite(LED_STEER_CAN,   HIGH);
   digitalWrite(LED_STEER_PWM,   LOW);
 }
 
 void indicate_DRIVE_PWM(){
+  //Serial.println("indicate_DRIVE_PWM");
   digitalWrite(LED_DRIVE_CAN,   LOW);
   digitalWrite(LED_DRIVE_PWM,   HIGH);
 }
 
 void indicate_DRIVE_CAN(){
+  //Serial.println("indicate_DRIVE_CAN");
   digitalWrite(LED_DRIVE_CAN,   HIGH);
   digitalWrite(LED_DRIVE_PWM,   LOW);
 }
 
 void indicate_STEERING_PWM(){
+  //Serial.println("indicate_STEERING_PWM");
   digitalWrite(LED_STEER_CAN,   LOW);
   digitalWrite(LED_STEER_PWM,   HIGH);
 }
@@ -167,10 +173,17 @@ void indicate_REVERSE (){
 
 void setup() {
       pinMode(12, OUTPUT);
-      
+      pinMode(analogRevPin, OUTPUT);
+      analogWrite(analogRevPin, 0);
       /*
       * Set up the pins for STATUS LED.
       */
+
+      pinMode(11, OUTPUT);
+      digitalWrite(11, LOW);
+      
+      
+      
       pinMode( LED_CAN_IN, OUTPUT);  digitalWrite(LED_CAN_IN, LOW);
       pinMode( LED_CAN_OUT, OUTPUT); digitalWrite(LED_CAN_OUT, LOW);
       pinMode( LED2, OUTPUT);        digitalWrite(LED2, LOW);
@@ -189,7 +202,7 @@ void setup() {
       magThreshold = 500;
   
       Serial.begin(9600);
-      svr_steer.attach(11);
+      svr_steer.attach(12);
       // when pin D2 goes high, call the rising function
       attachInterrupt(speed_PWM_Interrupt, rising_SPEED_PWM, RISING);
       attachInterrupt(steer_PWM_Interrupt, rising_STEER_PWM, RISING);
@@ -266,7 +279,7 @@ void can_operations(){
         }
         */
         CAN_IN_OFF();
-        Serial.println();
+        //Serial.println();
   }
 }
 
@@ -292,6 +305,7 @@ void handleMagnetometerInfo( int direction_EW, int value_degrees ){
       }else{
         magnetometerAngle = value_degrees * -1;
       }
+      Serial.print( "MG: " );
       Serial.println( magnetometerAngle );
        
 }
@@ -303,11 +317,13 @@ void dutyCycleToSteering(){
   Get value from potentiometer, use to define centre-trim value
   */
   int centreTrim = 925;
-  
-  //Serial.print("  ---  ");  
-    //Serial.print(currentDutyCycleSteer);
-    //Serial.print("  -  ");  
+  /*
+    Serial.print("  ---  ");  
+    Serial.print(currentDutyCycleSteer);
+    Serial.println("  -  ");  
+  */
     int steerLinear=0;
+   
 
     if( currentDutyCycleSteer < 1480){
           indicate_LEFT();
@@ -390,10 +406,10 @@ void dutyCycleToOperation(){
   */
     if( currentDutyCycleSpeed < 1420 ){
       forwardReverse = 1;
-      digitalWrite(12, HIGH); 
+      digitalWrite(11, HIGH); 
     }else{
       forwardReverse = 0;
-      digitalWrite(12, LOW); 
+      digitalWrite(11, LOW); 
     }
 
     if ( currentDutyCycleSpeed > 1400 & currentDutyCycleSpeed < 1600){
@@ -409,37 +425,50 @@ void dutyCycleToOperation(){
             speedLinear = ( currentDutyCycleSpeed - 1600 ) / 2.16;
       }
     }
-
-    //Serial.print(forwardReverse);
-    //Serial.print("  -  ");
-    //Serial.println(speedLinear*40, DEC);
+    dac.setVoltage(speedLinear * 40, false);
+    /*
+    Serial.print(forwardReverse);
+    Serial.print("  -  ");
+    Serial.println(speedLinear*40, DEC);
+    */
     //delay(200);
 }
 
 void handle_switches_rc_or_can(){
-/*
+  /*
   Serial.print(digitalRead( SWITCH_STEER_CAN_OR_PWM ) );
   Serial.print(" \t");
   Serial.println(digitalRead( SWITCH_DRIVE_CAN_OR_PWM ) );
-*/
+  */
   can_or_rc_steer = digitalRead( SWITCH_STEER_CAN_OR_PWM );
   can_or_rc_drive = digitalRead( SWITCH_DRIVE_CAN_OR_PWM );
-  
+  /*
+  Serial.print( can_or_rc_steer );
+  Serial.print(" \t");
+  Serial.println( can_or_rc_drive );
+  */
   if(can_or_rc_steer == 1){
     dutyCycleToSteering();
     indicate_STEERING_PWM();
+    //Serial.print( "STEER: RC" );
   }else{
     canToSteering();
     indicate_STEERING_CAN();
+    //Serial.print( "STEER: CAN" );    
   }
+
+  //Serial.print( "\t" );    
   
   if(can_or_rc_drive == 1){
     dutyCycleToOperation();
-    indicate_DRIVE_CAN();
+    indicate_DRIVE_PWM();
+    //Serial.print( "DRIVE: RC" );
   }else{
     canToDrive();
     indicate_DRIVE_CAN();
+    //Serial.print( "DRIVE: CAN" );
   }
+  //Serial.println( "" );
   /*
   Serial.print(can_steer);
   Serial.print("\t");
@@ -455,31 +484,38 @@ void canToSteering(){
    *  LEFT    C     RIGHT
    *  
    */  
-  
+  int currentCanSteer;
   int centreTrim = 925;
   
   //Serial.print("  ---  ");  
     //Serial.print(currentDutyCycleSteer);
     //Serial.print("  -  ");  
     //can_steer
-    int steerLinear=0;
+    int steerScalar=0;
 
-    currentDutyCycleSteer = can_steer * 166;
+    currentCanSteer = can_steer;
     
-    if( currentDutyCycleSteer < 1480){
+    if( currentCanSteer < 8){
           indicate_LEFT();
-    }else if( currentDutyCycleSteer > 1512){
+          steerScalar = 100 - ( (8-currentCanSteer)*6 );
+    }else if( currentCanSteer > 8){
           indicate_RIGHT();
+          steerScalar = 100 + ( (currentCanSteer-8)*6 );
     }else{
           indicate_CENTRE();  
+          steerScalar = 100;
     }
 
-    steerLinear = ( currentDutyCycleSteer);
+    
 
-    int steerScalar = steerLinear-centreTrim;
+    
     //steerScalar = 180 - (steerScalar/5.55555);
-    steerScalar = steerScalar/5.55555;
-    //Serial.print( steerScalar );  
+    /*
+    Serial.print( can_steer ); 
+    Serial.print( "--------" ); 
+    Serial.print( steerScalar );  
+    Serial.println( "--------" ); 
+    */
     svr_steer.write(steerScalar);
     //Serial.print("\n");
 
@@ -498,28 +534,32 @@ void canToDrive(){
      //Serial.print("DRIVE: \t");
      //Serial.print( can_drive );
      //Serial.print( "\n" );
-      Serial.println(can_drive);
+     //Serial.println(can_drive);
 
       int linear_drive;
+      //Serial.println("Calling Motor Driver....");
+      Serial.println(can_drive);
       
       if(can_drive == 8){
         linear_drive=0;
         forwardReverse = 0;
-        digitalWrite(12, LOW); 
+        digitalWrite(11, LOW); 
         //Serial.print("NEUTRAL - ");
       }else if (can_drive > 8){
         linear_drive = can_drive - 8;
         forwardReverse = 0;
-        digitalWrite(12, LOW); 
+        digitalWrite(11, LOW); 
         //Serial.print("FWD - ");
       }else if (can_drive < 8){
         linear_drive = 8 - can_drive;
         forwardReverse = 1;
-        digitalWrite(12, HIGH);
+        digitalWrite(11, HIGH);
+        //delay(100);
         //Serial.print("REV - "); 
       }
       //Serial.println(linear_drive);
       speedLinear = linear_drive * 13;
+      dac.setVoltage(speedLinear * 40, false);
 }
 
 void loop() {
@@ -529,19 +569,26 @@ void loop() {
   checkMagentometer();
   checkCanDrive();
   checkCanSteer();
-  dac.setVoltage(speedLinear * 40, false);
-  //delay(1000);  
+  
+  //delay(10);  
 }
 
 
 void checkCanDrive(){
   thisCanDriveReadingTime = millis();
   long timeSinceLastCanDriveReading = thisCanDriveReadingTime - prevCanDriveReadingTime;
-  if(timeSinceLastCanDriveReading>1000){
-      //Serial.println("RESETTING CAN DRIVE READING to 5"); 
-      can_drive = 8;
-      digitalWrite(12, LOW); 
-      speedLinear = 0;
+  if(timeSinceLastCanDriveReading>500){
+      //if(can_drive != 8){
+          dac.setVoltage(0, false);
+          delay(10);
+          prevCanDriveReadingTime = millis();
+          //Serial.println("RESETTING CAN DRIVE READING to 8"); 
+          can_drive = 8;
+          forwardReverse = 0;
+          digitalWrite(11, LOW);
+          speedLinear = 0;
+          
+      //}
   }
   
 }
@@ -549,9 +596,12 @@ void checkCanDrive(){
 void checkCanSteer(){
   thisCanSteerReadingTime = millis();
   long timeSinceLastCanSteerReading = thisCanSteerReadingTime - prevCanSteerReadingTime;
-  if(timeSinceLastCanSteerReading>1000){
-      //Serial.println("RESETTING CAN STEER READING to 5");
-      can_steer = 5; 
+  if(timeSinceLastCanSteerReading>999){
+      if(can_steer !=8){
+          prevCanSteerReadingTime = millis();
+          //Serial.println("RESETTING CAN STEER READING to 8");
+          can_steer = 8; 
+      }
   }
   
 }
@@ -559,26 +609,26 @@ void checkCanSteer(){
 
 
 void checkMagentometer(){
-  /*
+  
   thisMagReadingTime = millis();
   long timeSinceLastMagReading = thisMagReadingTime - prevMagReadingTime;
   if(timeSinceLastMagReading>magThreshold){
-    magThreshold=2000;
+    magThreshold=4000;
     bumpMagnetometer();  
   }else{
-    magThreshold=500;
+    magThreshold=800;
   }
-  */
+   
 }
 
 void bumpMagnetometer(){
-  /*
+  
   Serial.println("BUMP THE MAGNETOMETER!!");
   digitalWrite(SIGNAL_MAG_BUMP,   HIGH);
   delay(10);
   digitalWrite(SIGNAL_MAG_BUMP,   LOW);
   delay(magThreshold);
-  */
+  
 }
  
 void rising_SPEED_PWM() {

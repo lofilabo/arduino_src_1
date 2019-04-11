@@ -40,7 +40,7 @@ void loop() {
   
   delay(50);
  
-  if(x>64){
+  if(x>140){
     dir=0;
   }
 
