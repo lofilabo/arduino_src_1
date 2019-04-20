@@ -11,10 +11,19 @@ int sensorValue3 = 0;
 int sensorPin4 = A4; 
 int sensorValue4 = 0;
 
+int sensorPin5 = A5; 
+int sensorValue5 = 0;
+
 bool throttleSelectCollective = false;
+
+int countr = 0;
+int onoff = 0;
 
 
 void setup() {
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    
     Serial.begin( 9600 );
     while (!Serial)
     {
@@ -24,6 +33,21 @@ void setup() {
 }
 
 void loop() {
+
+  countr++;
+  if(countr>250){
+    countr=0;
+    if(onoff==1){
+      onoff=0;
+    }else{
+      onoff=1;  
+    }
+  }
+  if(onoff==1){
+      digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  }else{
+      digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  }
   
   sensorValue0 = analogRead(sensorPin0);
   Serial.print(sensorValue0);
@@ -34,13 +58,8 @@ void loop() {
   Serial.print("\t");
 
   sensorValue2 = analogRead(sensorPin2);
-  sensorValue2 = ( sensorValue2-700 )*3;
-  if(sensorValue2<=0){
-    sensorValue2=0;
-    throttleSelectCollective=true;
-  }else{
-    throttleSelectCollective=false;  
-  }
+  sensorValue2 = (( sensorValue2-700 )*3)+54;
+  if(sensorValue2<=0){ sensorValue2=0;}
   Serial.print(sensorValue2);
   Serial.print("\t");
 
@@ -52,7 +71,15 @@ void loop() {
   Serial.print(sensorValue4*5);
   Serial.print("\t");
 
-  Serial.print( throttleSelectCollective );
+  sensorValue5 = analogRead(sensorPin5);
+  sensorValue5 = sensorValue5 - 320;
+  if(sensorValue5<=0){sensorValue5=0;}
+  if(sensorValue5>1000){sensorValue5=1000;} 
+  sensorValue5 = sensorValue5 * 2.5;
+  Serial.print( (sensorValue5)  );
+  Serial.print("\t");
+
+  //Serial.print( throttleSelectCollective );
 
   Serial.print("\n");
   delay( 2 );
