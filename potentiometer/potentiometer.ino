@@ -54,7 +54,7 @@ void loop() {
   Serial.print("\t");
 
   sensorValue1 = analogRead(sensorPin1);
-  Serial.print(sensorValue1);
+  Serial.print( 1023 - sensorValue1 );
   Serial.print("\t");
 
   sensorValue2 = analogRead(sensorPin2);

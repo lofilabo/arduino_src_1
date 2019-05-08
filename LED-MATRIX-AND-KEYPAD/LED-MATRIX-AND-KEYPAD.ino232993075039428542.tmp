@@ -1,4 +1,32 @@
-//We always have to include the library
+/* 
+
+ ***************** Created by BoxElectrónica**********************
+
+ */
+
+#include <Keypad.h>
+
+const byte ROWS = 4; // Four rows
+const byte COLS = 4; // Four columns
+
+// Define the Keymap
+char keys[ROWS][COLS] = {
+ {'1','2','3','A'},
+ {'4','5','6','B'},
+ {'7','8','9','C'},
+ {'#','0','*','D'}
+};
+
+// Connect keypad ROW0, ROW1, ROW2 and ROW3 to these Arduino pins.
+byte rowPins[COLS] = { 2, 3, 4, 5 };
+// Connect keypad COL0, COL1, COL2 and COL3 to these Arduino pins.
+byte colPins[ROWS] = { 6, 7, 8, 9 }; 
+
+// Create the Keypad
+Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+
+
+
 #include "LedControlMS.h"
 
 /*
@@ -24,8 +52,33 @@ char ch0, ch1, ch2, ch3;
 int nextCharIndex=0;
 
 
-void setup() {
-  /*
+
+
+
+
+#define ledpin 13
+
+void setup()
+{
+  setupLEDMatrix();
+  setupKeypad();
+
+}
+
+void loop(){
+  handleKeypad();
+  writeLEDMatrix();
+}
+
+void setupKeypad(){
+ pinMode(ledpin,OUTPUT);
+ digitalWrite(ledpin, HIGH);
+ Serial.begin(9600);  
+}
+
+void setupLEDMatrix(){
+
+    /*
    The MAX72XX is in power-saving mode on startup,
    we have to do a wakeup call
    */
@@ -50,10 +103,11 @@ void setup() {
   nextCharIndex=4;
 }
 
-void loop(){
+void writeLEDMatrix(){
+  
 
   sensorValue = analogRead(sensorPin);
-  Serial.println(sensorValue);
+  //Serial.println(sensorValue);
   lc.displayChar(0, lc.getCharArrayPosition(ch0));
   lc.displayChar(1, lc.getCharArrayPosition(ch1));
   lc.displayChar(2, lc.getCharArrayPosition(ch2));
@@ -65,5 +119,33 @@ void loop(){
   if (nextCharIndex>=stringLength) nextCharIndex=0;
   delay( sensorValue );
   lc.clearAll();
-  delay(0);
+  delay(0);  
+  
+}
+
+void handleKeypad(){
+ char key = kpd.getKey();
+
+   if (key == '1'){
+    Serial.println('one');
+   }else if(key == '2'){
+    Serial.println('two');
+   }else{
+       Serial.println('other');
+   }
+ /*
+   if(key){
+     switch (key)
+     {
+     case '*':
+     digitalWrite(ledpin, LOW);
+     break;
+     case '#':
+     digitalWrite(ledpin, HIGH);
+     break;
+     default:
+     Serial.println(key);
+     }
+   }
+ */
 }
