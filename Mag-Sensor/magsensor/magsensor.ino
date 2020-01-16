@@ -44,7 +44,7 @@ void displaySensorDetails(void)
 
   //Serial.print("Z: "); Serial.print(event.magnetic.z); Serial.print("  ");
   //Serial.println("uT");  
-  /*
+
   Serial.println("------------------------------------");
   Serial.print  ("Sensor:       "); Serial.println(sensor.name);
   Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
@@ -54,7 +54,7 @@ void displaySensorDetails(void)
   Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" uT");  
   Serial.println("------------------------------------");
   Serial.println("");
-  */
+
   delay(500);
 }
 
