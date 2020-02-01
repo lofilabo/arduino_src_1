@@ -77,6 +77,8 @@ EventDelay noteDelay;
 void handleNoteOn(byte channel, byte pitch, byte velocity)
 {
 
+    Serial.println( pitch );
+
     if(notas[0]==0)
     {
       aOscil.setFreq((int)mtof(pitch));
@@ -128,7 +130,7 @@ void handleNoteOff(byte channel, byte pitch, byte velocity)
 }
 
 void setup(){
-
+    Serial.begin(9600);
     pinMode(13, OUTPUT);     
 
     notas[0]=0;
@@ -160,7 +162,8 @@ void setup(){
     MIDI.setHandleNoteOff(handleNoteOff);
 
     // Initiate MIDI communications, listen to all channels
-    MIDI.begin(MIDI_CHANNEL_OMNI);
+    //MIDI.begin(MIDI_CHANNEL_OMNI);
+    MIDI.begin(4);
 }
 
 
