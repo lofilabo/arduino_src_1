@@ -63,6 +63,8 @@ void setup(){
      
     Serial.begin(9600);
     Wire.begin();  
+
+    Serial.println("Starting....");
     
     if(!mag.begin()){
       Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");

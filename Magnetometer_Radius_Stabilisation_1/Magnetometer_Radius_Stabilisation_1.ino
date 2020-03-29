@@ -61,6 +61,7 @@ void vector_length_stabilasation(){
 void setup()
 {   
   Serial.begin(9600);
+  Serial.print( "STARTING" ); 
   Wire.begin();  
   compass = HMC5883L();  
   setupHMC5883L();       
