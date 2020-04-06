@@ -1,57 +1,96 @@
-#include <SoftwareSerial.h>
 
+#include <SoftwareSerial.h>
+#include "TimerObject.h"
 #include "Wire.h" // For I2C
+/*
 #include "LCD.h" // For LCD
+*/
 #include "LiquidCrystal_I2C.h" // Added library*
 //Set the pins on the I2C chip used for LCD connections
 //ADDR,EN,R/W,RS,D4,D5,D6,D7
-LiquidCrystal_I2C lcd(0x27,2,1,0,4,5,6,7); // 0x27 is the default I2C bus address of the backpack-see article
+LiquidCrystal_I2C lcd(0x27,20,4); // 0x27 is the default I2C bus address of the backpack-see article
+
+TimerObject *timer1 = new TimerObject(2000); //will call the callback in the interval of 1000 ms
 
 
 SoftwareSerial gpsSerial(3, 4); // RX, TX (TX not used)
 const int sentenceSize = 80;
-
+long miliCount = 0;
+long timeSinceLastCheck;
+int timeOfNextCheck;
 char sentence[sentenceSize];
+
+void FunctionCallback(){
+  Serial.println("CALLBACK!!");
+}
 
 void setup()
 {
   Serial.begin(9600);
   gpsSerial.begin(9600);
-  //Serial.println( "Setup" );
+  // initialize the LCD
+  lcd.begin();
+  timer1->setOnTimer(&FunctionCallback);
+  timer1->Start(); //start the thread.
+  // Turn on the blacklight and print a message.
+  lcd.backlight();
+  lcd.print("In Setup...");
+   
+  
+}
 
-   // Set off LCD module
-   lcd.begin (20,4); // 16 x 2 LCD module
-   lcd.setBacklightPin(3,POSITIVE); // BL, BL_POL
-   lcd.setBacklight(HIGH);
-   
-//   lcd.setCursor(0,1);   
-//   lcd.print("Hello, World!");
-   
+void printTerminalMessagesToLCD(){
+
+    while(Serial.available() > 0 ){
+    String str = Serial.readString();
+    Serial.println(str);
+    if(str.length()>5){
+        String sercode = str.substring(0,4);
+        //Serial.println(sercode);
+        if(sercode.equals("ser1")){
+            
+            lcd.setCursor(0,2);
+            lcd.print("                    ");
+            lcd.setCursor(0,2);
+            lcd.print(str.substring(5));
+        }
+
+        if(sercode.equals("ser2")){
+            lcd.setCursor(0,3);
+            lcd.print("                    ");
+            lcd.setCursor(0,3);
+            lcd.print(str.substring(5));
+        }
+
+    }
+  }
   
 }
 
 void loop()
 {
+
   static int i = 0;
-  
-  if (gpsSerial.available())
-  {
-    char ch = gpsSerial.read();
-    
-    if (ch != '\n' && i < sentenceSize)
-    {
-      sentence[i] = ch;
-      i++;
-    }
-    else
-    {
-      
-     sentence[i] = '\0';
-     i = 0;
-     displayGPS();
-    }
+  timer1->Update();
+
+  printTerminalMessagesToLCD();
+
+  if (gpsSerial.available()){
+        char ch = gpsSerial.read();
+        
+        if (ch != '\n' && i < sentenceSize){
+            sentence[i] = ch;
+            i++;
+        }else{
+             sentence[i] = '\0';
+             i = 0;
+             displayGPS();
+             
+        }
   }
 }
+
+
 
 float parseLatitude(String strIn){
     if( strIn.length()>2){
@@ -133,12 +172,7 @@ void displayGPS()
       return;//No useful E/W data.  Scrap this reading
     }    
     
-    Serial.print(fLat_numbers, DEC);
-    Serial.print("\t");
-     char result1[20];
-     dtostrf(fLat_numbers, 15, 10, result1); // Leave room for too large numbers!
-     lcd.setCursor(0,0);
-     lcd.print(result1);    
+   
 
     
     
@@ -159,13 +193,7 @@ void displayGPS()
     }else{
       return;//No useful E/W data.  Scrap this reading
     }
-
-    Serial.print(fLong_numbers, DEC);
-    Serial.print("\t\t");
-     char result2[20];
-     dtostrf(fLong_numbers, 15, 10, result2); // Leave room for too large numbers!
-     lcd.setCursor(0,1);
-     lcd.print(result2);    
+   
     /*
     int j;
     for(j=0; j<20;j++){
@@ -174,13 +202,37 @@ void displayGPS()
     delay(2000);
     */
 
+    Serial.print("latlongtime");
+    Serial.print("\t");
+    Serial.print(fLat_numbers, DEC);
+    Serial.print("\t");
+    Serial.print(fLong_numbers, DEC);
+    Serial.print("\t");
     Serial.print(sTime);  
+    /*
     Serial.print("\t");
     Serial.print(sSpeed);  
     Serial.print("\t");
     Serial.print(sCourse);  
+    */
     Serial.print("\n");
     
+     char result1[20];
+     dtostrf(fLat_numbers, 15, 10, result1); // Leave room for too large numbers!
+     lcd.setCursor(0,0);
+     lcd.print(result1);  
+
+     char result2[20];
+     dtostrf(fLong_numbers, 15, 10, result2); // Leave room for too large numbers!
+     lcd.setCursor(0,1);
+     lcd.print(result2);        
+    
+     lcd.setCursor(0,0);
+     lcd.print("N");
+     lcd.setCursor(0,1);
+     lcd.print("E");     
+/*
+
     lcd.setCursor(0,2);
     lcd.print("T: ");
     lcd.setCursor(3,2);
@@ -189,8 +241,8 @@ void displayGPS()
     lcd.setCursor(10,2);
     lcd.print("S: ");
     lcd.setCursor(13,2);
-    lcd.print(sSpeed);
-
+    lcd.print(sSpeed); 
+ 
     lcd.setCursor(0,3);
     lcd.print("C: ");
     lcd.setCursor(3,3);
@@ -200,11 +252,7 @@ void displayGPS()
     lcd.print("V: ");
     lcd.setCursor(13,3);
     lcd.print(sVar);
-
-     lcd.setCursor(16,0);
-     lcd.print("N");
-     lcd.setCursor(16,1);
-     lcd.print("E");
+*/
     
   }
 }

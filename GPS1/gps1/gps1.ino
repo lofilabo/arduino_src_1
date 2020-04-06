@@ -16,23 +16,18 @@ void loop()
 {
   static int i = 0;
   
-  if (gpsSerial.available())
-  {
-    char ch = gpsSerial.read();
-    
-    if (ch != '\n' && i < sentenceSize)
-    {
-      sentence[i] = ch;
-      i++;
+    if (gpsSerial.available()){
+      char ch = gpsSerial.read();
+        
+        if (ch != '\n' && i < sentenceSize){
+          sentence[i] = ch;
+          i++;
+        }else{
+           sentence[i] = '\0';
+           i = 0;
+           displayGPS();
+        }
     }
-    else
-    {
-      
-     sentence[i] = '\0';
-     i = 0;
-     displayGPS();
-    }
-  }
 }
 
 float parseLatitude(String strIn){

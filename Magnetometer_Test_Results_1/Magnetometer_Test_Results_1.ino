@@ -196,6 +196,3 @@ void getHeading()
   yv = event.magnetic.y;
   zv = event.magnetic.z;
 }
-
-
-
