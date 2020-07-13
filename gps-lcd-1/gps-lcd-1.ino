@@ -2,6 +2,8 @@
 #include <SoftwareSerial.h>
 #include "TimerObject.h"
 #include "Wire.h" // For I2C
+#include <Adafruit_HMC5883_U.h>
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 /*
 #include "LCD.h" // For LCD
 */
@@ -10,7 +12,7 @@
 //ADDR,EN,R/W,RS,D4,D5,D6,D7
 LiquidCrystal_I2C lcd(0x27,20,4); // 0x27 is the default I2C bus address of the backpack-see article
 
-TimerObject *timer1 = new TimerObject(2000); //will call the callback in the interval of 1000 ms
+TimerObject *timer1 = new TimerObject(500); //will call the callback in the interval of 1000 ms
 
 
 SoftwareSerial gpsSerial(3, 4); // RX, TX (TX not used)
@@ -20,12 +22,62 @@ long timeSinceLastCheck;
 int timeOfNextCheck;
 char sentence[sentenceSize];
 
+
+float xv, yv, zv;
+float totxv, totyv, totzv;
+float pi = 3.14 ;
+float headingAngleRadians;
+int headingAngleDegrees;
+float headingAngleRadiansWithDir;
+int headingAngleDegreesWithDir;
+int NorS;//N=0, S=1;
+int EorW;//E=0, W=1;
+String dir = "";
+int headingAvCount = 0;
+//calibrated_values[3] is the global array where the calibrated data will be placed
+//calibrated_values[3]: [0]=Xc, [1]=Yc, [2]=Zc
+float calibrated_values[3];  
+
+
 void FunctionCallback(){
-  Serial.println("CALLBACK!!");
+  
+      //Serial.println("CALLBACK!!");
+
+      lcd.setCursor(16,0);
+      lcd.print("    ");
+      lcd.setCursor(16,0);
+      lcd.print(headingAngleDegrees);  
+
+      lcd.setCursor(16,1);
+      lcd.print("    ");
+      lcd.setCursor(16,1);
+      lcd.print(dir);  
+
+      /*
+      Serial.flush(); 
+      Serial.println("HEADINGS:");
+      Serial.print(calibrated_values[0]); 
+      Serial.print("\t");
+      Serial.print(calibrated_values[1]);
+      Serial.print("\t");
+      Serial.print(calibrated_values[2]);
+      Serial.print( "\t" );
+      Serial.print(  headingAngleRadiansWithDir );
+      Serial.print( "\t" );
+      Serial.print(  headingAngleDegreesWithDir );
+      Serial.print("\t");
+      Serial.print( dir );
+      Serial.print( "\n" );
+      */ 
+      
+
 }
 
 void setup()
 {
+  totxv=0;
+  totyv=0;
+  totzv=0;
   Serial.begin(9600);
   gpsSerial.begin(9600);
   // initialize the LCD
@@ -35,8 +87,20 @@ void setup()
   // Turn on the blacklight and print a message.
   lcd.backlight();
   lcd.print("In Setup...");
-   
-  
+    
+    //Serial.println("About to begin WIRE");
+    Wire.begin();  
+    //Serial.println("WIRE started.");
+    //Serial.println("Starting....");
+    
+    if(!mag.begin()){
+      Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
+      while(1);
+    }   
+
+    lcd.setCursor(0,0);
+    lcd.print("                                                        ");
+    
 }
 
 void printTerminalMessagesToLCD(){
@@ -69,6 +133,8 @@ void printTerminalMessagesToLCD(){
 
 void loop()
 {
+
+  getAndShowHeadings();
 
   static int i = 0;
   timer1->Update();
@@ -278,3 +344,126 @@ void getField(char* buffer, int index)
   }
   buffer[fieldPos] = '\0';
 } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void transformation(float uncalibrated_values[3])    
+{
+  //calibration_matrix[3][3] is the transformation matrix
+  //replace M11, M12,..,M33 with your transformation matrix data
+double calibration_matrix[3][3] =
+  {
+      {-0.045, -0.503, 0.011},
+      {-0.37, -0.051, 0.004},
+      {-0.014, 0.247, 0.475}  
+  };
+  //bias[3] is the bias
+  //replace Bx, By, Bz with your bias data
+  double bias[3] =
+  {
+      1.265,
+      -0.109,
+      -5.408
+  };  
+
+  //calculation
+  for (int i=0; i<3; ++i) uncalibrated_values[i] = uncalibrated_values[i] - bias[i];
+  float result[3] = {0, 0, 0};
+  for (int i=0; i<3; ++i)
+    for (int j=0; j<3; ++j)
+      result[i] += calibration_matrix[i][j] * uncalibrated_values[j];
+  for (int i=0; i<3; ++i) calibrated_values[i] = result[i];
+}
+
+void getAndShowHeadings(){
+  
+  float values_from_magnetometer[3];
+
+  headingAvCount++;
+
+  getHeading();
+
+  if(headingAvCount < 10){
+      totxv = totxv + xv;
+      totyv = totyv + yv;
+      totzv = totzv + zv;
+      return;
+  }else{
+    headingAvCount=0;
+    xv=totxv/10;
+    yv=totyv/10;
+    zv=totzv/10;
+    totxv=0;
+    totyv=0;
+    totzv=0;
+  }
+
+  values_from_magnetometer[0] = yv;
+  values_from_magnetometer[1] = xv;
+  values_from_magnetometer[2] = zv;
+  //transformation(values_from_magnetometer);
+
+  if(yv == 0.0 || xv == 0.0 || zv == 0.0){
+    //Serial.print(  "A ZERO!!" );
+    return;
+  }
+  //headingAngleRadians = atan(calibrated_values[0]/calibrated_values[1] );
+  headingAngleRadians = atan( yv/xv );
+  headingAngleDegrees = 57.2958*atan( yv/xv );
+  /*
+  Serial.print(  xv );
+  Serial.print( "\t" );
+  Serial.print(  yv );
+  Serial.print( "\t" );
+  Serial.print(  zv );
+  Serial.print( "\t" );
+  */
+  Serial.print(  headingAngleDegrees );
+  Serial.print( "\t" );
+  Serial.print( "\n" );
+    
+  //delay(100); 
+
+/*
+  byte data[8] = {EorW, headingAngleDegreesWithDir};
+  // send data:  ID = 0x100, Standard CAN Frame, Data length = 8 bytes, 'data' = array of data bytes to send
+  byte sndStat = CAN0.sendMsgBuf(0x101, 0, 8, data);
+  if(sndStat == CAN_OK){
+    Serial.print("\t CAN OK");
+  } else {
+    Serial.print("\t CAN BAD");
+  }
+    Serial.println();
+  delay(1000); 
+ */
+  
+}
+
+
+
+
+ 
+void getHeading()
+{ 
+  sensors_event_t event; 
+  mag.getEvent(&event);
+  xv = event.magnetic.x;
+  yv = event.magnetic.y;
+  zv = event.magnetic.z;
+}

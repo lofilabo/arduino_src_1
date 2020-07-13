@@ -49,9 +49,9 @@ void getHeading()
   
   float magx, magy;
   
-  xv = event.magnetic.x;
-  yv = event.magnetic.y;
-  zv = event.magnetic.z;
+  xv = event.magnetic.x*0.8;
+  yv = event.magnetic.y*0.8;
+  zv = event.magnetic.z*0.8;
   /*
   MagnetometerRaw raw = compass.ReadRawAxis();
   
@@ -60,4 +60,3 @@ void getHeading()
   zv = (float)raw.ZAxis;
   */
 }
-
