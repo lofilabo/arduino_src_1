@@ -33,24 +33,24 @@ void loop() {
     countr2++;
   }
 
-  if (countr1 > 30){
+  if (countr1 > 299){
     //set state = high
     // and relay is Actuated;
     setState(1);
   }
 
-  if (countr2 > 30){
+  if (countr2 > 299){
     //set state = high
     // and relay is De-Actuated;
     setState(0);
   }
 
-  if ( d3H == 1 & d4H == 1 ){
-    genCountr++;
-  }
+  //if ( d3H == 1 & d4H == 1 ){
+  //  genCountr++;
+  //}
 
-  if( genCountr > 40 ){
-    //if there has been no activity for 40 flops,
+  if( genCountr > 300 ){
+    //if there has been no activity for 30 flops,
     //reset both counters and don't change the relay state.
     genCountr = 0;
     countr1 = 0;
@@ -77,7 +77,7 @@ void loop() {
     digitalWrite(LED_BUILTIN, HIGH);
   }
   
-  delay(50);                       // wait for a second
+  delay(10);                       // wait for a second
 
   setRelay();
   
