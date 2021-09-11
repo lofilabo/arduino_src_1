@@ -5,8 +5,8 @@
 #include <SPI.h>
 #include <Servo.h>
 
-#define speed_PWM_Interrupt 0
-#define steer_PWM_Interrupt 1
+#define speed_PWM_Interrupt 2
+#define steer_PWM_Interrupt 3
 
 Adafruit_MCP4725 dac; // constructor
 Servo svr_steer;
@@ -204,6 +204,7 @@ void setup() {
       Serial.begin(9600);
       svr_steer.attach(12);
       // when pin D2 goes high, call the rising function
+      Serial.println("HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEERE");
       attachInterrupt(speed_PWM_Interrupt, rising_SPEED_PWM, RISING);
       attachInterrupt(steer_PWM_Interrupt, rising_STEER_PWM, RISING);
   
@@ -265,8 +266,8 @@ void can_operations(){
              prevCanDriveReadingTime = millis();
         }
         
-        //Serial.print(msgString);
-        //Serial.println(rxId);
+        Serial.print(msgString);
+        Serial.println(rxId);
         /*
         if((rxId & 0x40000000) == 0x40000000){    // Determine if message is a remote request frame.
           sprintf(msgString, " REMOTE REQUEST FRAME");
@@ -338,9 +339,9 @@ void dutyCycleToSteering(){
     int steerScalar = steerLinear-centreTrim;
     //steerScalar = 180 - (steerScalar/5.55555);
     steerScalar = steerScalar/5.55555;
-    //Serial.print( steerScalar );  
+    Serial.print( steerScalar );  
     svr_steer.write(steerScalar);
-    //Serial.print("\n");
+    Serial.print("\n");
     //delay(500);
 }
 
@@ -373,8 +374,8 @@ void __dutyCycleToSteering(){
 
 void dutyCycleToOperation(){
 
-    //Serial.print(currentDutyCycleSpeed);
-    //Serial.print("  -  ");
+    Serial.print(currentDutyCycleSpeed);
+    Serial.print("  -  ");
     if(currentDutyCycleSpeed < 1000){
       currentDutyCycleSpeed = 1000;
      }    
@@ -426,11 +427,11 @@ void dutyCycleToOperation(){
       }
     }
     dac.setVoltage(speedLinear * 40, false);
-    /*
-    Serial.print(forwardReverse);
-    Serial.print("  -  ");
-    Serial.println(speedLinear*40, DEC);
-    */
+    
+    //Serial.print(forwardReverse);
+    //Serial.print("  -  ");
+    //Serial.println(speedLinear*40, DEC);
+    
     //delay(200);
 }
 
@@ -449,12 +450,12 @@ void handle_switches_rc_or_can(){
   */
   if(can_or_rc_steer == 1){
     dutyCycleToSteering();
-    indicate_STEERING_PWM();
-    //Serial.print( "STEER: RC" );
+    //indicate_STEERING_PWM();
+    //Serial.println( "STEER: RC" );
   }else{
     canToSteering();
-    indicate_STEERING_CAN();
-    //Serial.print( "STEER: CAN" );    
+    //indicate_STEERING_CAN();
+    //Serial.println( "STEER: CAN" );    
   }
 
   //Serial.print( "\t" );    
@@ -462,11 +463,11 @@ void handle_switches_rc_or_can(){
   if(can_or_rc_drive == 1){
     dutyCycleToOperation();
     indicate_DRIVE_PWM();
-    //Serial.print( "DRIVE: RC" );
+    //Serial.println( "DRIVE: RC" );
   }else{
     canToDrive();
     indicate_DRIVE_CAN();
-    //Serial.print( "DRIVE: CAN" );
+    //Serial.println( "DRIVE: CAN" );
   }
   //Serial.println( "" );
   /*
@@ -538,7 +539,7 @@ void canToDrive(){
 
       int linear_drive;
       //Serial.println("Calling Motor Driver....");
-      Serial.println(can_drive);
+      //Serial.println(can_drive);
       
       if(can_drive == 8){
         linear_drive=0;
@@ -564,13 +565,13 @@ void canToDrive(){
 
 void loop() {
 
-  can_operations();
+  //can_operations();
   handle_switches_rc_or_can();
-  checkMagentometer();
-  checkCanDrive();
-  checkCanSteer();
+  //checkMagentometer();
+  //checkCanDrive();
+  //checkCanSteer();
   
-  //delay(10);  
+  //delay(100);  
 }
 
 
@@ -609,6 +610,8 @@ void checkCanSteer(){
 
 
 void checkMagentometer(){
+
+  return;
   
   thisMagReadingTime = millis();
   long timeSinceLastMagReading = thisMagReadingTime - prevMagReadingTime;
@@ -632,15 +635,17 @@ void bumpMagnetometer(){
 }
  
 void rising_SPEED_PWM() {
+  //Serial.println("ONE");
   attachInterrupt( speed_PWM_Interrupt, falling_SPEED_PWM, FALLING );
   prev_time_speed = micros();
 }
  
 void falling_SPEED_PWM() {
+  //Serial.println("TWO");
   attachInterrupt( speed_PWM_Interrupt, rising_SPEED_PWM, RISING );
   currentDutyCycleSpeed = micros()-prev_time_speed;
   
-  //Serial.print(currentDutyCycleSpeed);
+  //Serial.println(currentDutyCycleSpeed);
   //Serial.print("\t");
 }
 

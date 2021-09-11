@@ -1,3 +1,5 @@
+#include <Adafruit_HMC5883_U.h>
+
 #include "Wire.h"
 #include <Adafruit_HMC5883_U.h>
 #include <mcp_can.h>
@@ -207,6 +209,3 @@ void getHeading()
   yv = event.magnetic.y;
   zv = event.magnetic.z;
 }
-
-
-
